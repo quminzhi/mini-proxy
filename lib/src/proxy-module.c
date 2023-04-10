@@ -63,18 +63,20 @@ int parse_request(int connfd, const char *request, char *host, char *port,
   }
 
   sscanf(request, "%s %s %s", method, uri, protocol);
-  LOG("solve: method = %s, uri = %s, protocol = %s\n", method, uri, protocol);
+  LOG("method = %s, uri = %s, protocol = %s\n", method, uri, protocol);
 
   if (strlen(method) == 0 || strlen(uri) == 0 || strlen(protocol) == 0) {
     response_failure(connfd, request, "400", "Bad request",
                      "Valid request format: [method] [uri] [version], ex> "
                      "GET http://google.com HTTP/1.0");
+    LOG("Responded failure back to client\n");
     return 0;
   }
 
   if (strcasecmp(method, "GET") != 0) {
     response_failure(connfd, method, "501", "Not implemented",
                      "Mini Proxy does not implement this method yet");
+    LOG("Responded failure back to client\n");
     return 0;
   }
 
@@ -83,16 +85,18 @@ int parse_request(int connfd, const char *request, char *host, char *port,
     response_failure(connfd, protocol, "400", "Bad request",
                      "Mini Proxy requires request version to be either "
                      "HTTP/1.0 or HTPP/1.1");
+    LOG("Responded failure back to client\n");
     return 0;
   }
 
   if (!parse_uri(uri, host, port, path)) {
     response_failure(connfd, uri, "404", "Not found",
                      "Mini Proxy couldn't parse the request");
+    LOG("Responded failure back to client\n");
     return 0;
   }
 
-  LOG("parse_request: host = %s, port = %s, path = %s\n", host, port, path);
+  LOG("host = %s, port = %s, path = %s\n", host, port, path);
 
   return 1;
 }

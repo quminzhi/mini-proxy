@@ -11,17 +11,6 @@
  */
 
 /*!
- * @brief init_proxy: initialize listen file descriptor on given port
- *
- * bind and listen a file descriptor on port
- */
-int init_proxy(char *port) {
-  int listenfd = open_listenfd(port);
-  INFO("Listenfd has been initialized successfully\n");
-  return listenfd;
-}
-
-/*!
  * @brief lisen_on initializes listen fd listening on port and spawning
  * connection fd for a connection.
  */
@@ -99,7 +88,8 @@ int main(int argc, char *argv[]) {
 
   signal(SIGPIPE, sigpipe_handler);
 
-  int listenfd = init_proxy(argv[1]);
+  int listenfd = open_listenfd(argv[1]);
+  INFO("Listenfd has been initialized successfully\n");
   sbuf_setup(&sbuf, SBUFSIZE);
   worker_setup();
   listen_on(listenfd);

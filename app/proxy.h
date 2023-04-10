@@ -20,7 +20,6 @@ const char *accept_encoding_hdr = "Accept-Encoding: gzip, deflate\r\n";
 const char *connection_hdr = "Connection: close\r\n";
 const char *proxy_connection_hdr = "Proxy-Connection: close\r\n\r\n";
 
-int init_proxy(char *port);
 void listen_on(int listenfd);
 void worker_setup();
 
