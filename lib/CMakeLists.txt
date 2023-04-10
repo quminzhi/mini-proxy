@@ -30,7 +30,17 @@ target_include_directories(proxy-module PUBLIC "${LIB_INCLUDE_DIR}")
 target_link_libraries(proxy-module PUBLIC 
   comm
   inet-helper
-  libexternal
+  csapp
+)
+
+add_library(
+  sbuf SHARED
+  include/sbuf.h
+  src/sbuf.c
+)
+target_include_directories(sbuf PUBLIC "${LIB_INCLUDE_DIR}")
+target_link_libraries(sbuf PUBLIC 
+  csapp
 )
 
 ###########################

@@ -6,12 +6,13 @@ set(CMAKE_BUILD_TYPE Debug)
 # add other apps here
 #############################
 set(APP proxy)
-add_executable(${APP} ${APP}.c)
+add_executable(${APP} ${APP}.c ${APP}.h)
 target_link_libraries(${APP} PUBLIC
   # link libraries needed
   libexternal
   inet-helper
   proxy-module
+  sbuf
 ) 
 
 add_executable(client client.c)

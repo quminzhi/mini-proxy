@@ -5,42 +5,37 @@
 #include <stdio.h>
 
 /*!
- * @brief init_proxy: initialize listen file descriptor on given port
+ * @brief solve: handle one HTTP request/response transaction
  *
- * bind and listen a file descriptor on port
+ *  following things will be done for making a transaction:
+ *    - read ana parse request
+ *    - forward request/response transaction
  */
-int init_proxy(char *port) {
-  int listenfd = open_listenfd(port);
-  INFO("Listenfd has been initialized successfully\n");
-  return listenfd;
-}
+void solve(int connfd) {
+  char request[MAXLINE]; /* save request */
+  char host[MAXLINE];    /* save host */
+  char path[MAXLINE];    /* save path */
+  char port[MAXLINE];    /* port in string format */
+  memset(host, 0, sizeof host);
+  memset(path, 0, sizeof path);
+  memset(port, 0, sizeof port);
 
-/*!
- * @brief start_lisen initializes listen fd listening on port and spawning
- * connection fd for a connection.
- */
-void start_listen(int listenfd) {
-  int connfd, rc;
-  struct sockaddr_storage clientaddr;
-  socklen_t clientlen = sizeof(struct sockaddr_storage);
-  char client_uriname[MAXLINE];
-  char client_port[MAXLINE];
+  // associate rio with connfd
+  rio_t rio;
+  rio_readinitb(&rio, connfd);
 
-  while (1) {
-    connfd = accept(listenfd, (struct sockaddr *)&clientaddr, &clientlen);
-    if ((rc = getnameinfo((struct sockaddr *)&clientaddr, clientlen,
-                          client_uriname, MAXLINE, client_port, MAXLINE,
-                          0) != 0)) {
-      fprintf(stderr, "getnameinfo error: %s\n", gai_strerror(rc));
-      exit(1);
-    }
-
-    INFO("Connected to (%s, %s)\n", client_uriname, client_port);
-
-    // start service for client associated with connfd
-    solve(connfd);
-    close(connfd);
+  size_t n;
+  if ((n = rio_readlineb(&rio, request, MAXLINE)) == 0) {
+    // if nothing received, return and close session
+    return;
   }
+  if (!parse_request(connfd, request, host, port, path)) {
+    // if it is a not valid requet, return and close session
+    return;
+  }
+  read_request_header(&rio);
+  int sum = forward_request_response(connfd, host, port, path);
+  LOG("Responded %d bytes for connfd(%d)\n", sum, connfd);
 }
 
 /*!
@@ -142,41 +137,6 @@ int forward_request_response(int connfd, char *host, char *port, char *path) {
 }
 
 /*!
- * @brief solve: handle one HTTP request/response transaction
- *
- *  following things will be done for making a transaction:
- *    - read the entirety of request
- *    - parse line and validate request (HTTP/1.0 GET) format
- *    - establish connection from proxy to destination server
- */
-void solve(int connfd) {
-  char request[MAXLINE]; /* save request */
-  char host[MAXLINE];    /* save host */
-  char path[MAXLINE];    /* save path */
-  char port[MAXLINE];    /* port in string format */
-
-  memset(host, 0, sizeof host);
-  memset(path, 0, sizeof path);
-  memset(port, 0, sizeof port);
-
-  // associate rio with connfd
-  rio_t rio;
-  rio_readinitb(&rio, connfd);
-
-  size_t n;
-  if ((n = rio_readlineb(&rio, request, MAXLINE)) != 0) {
-    LOG("Proxy received %d bytes from connfd(%d)\n", (int)n, connfd);
-    if (!parse_request(connfd, request, host, port, path)) {
-      // if parse failed, return
-      return;
-    }
-    read_request_header(&rio);
-    int sum = forward_request_response(connfd, host, port, path);
-    LOG("Responded %d bytes for connfd(%d)\n", sum, connfd);
-  }
-}
-
-/*!
  * @brief read_request_header reads and parses HTTP request headers
  *
  * note that request header ends with a blank line ("\r\n")
@@ -271,8 +231,9 @@ int parse_uri(const char *uri, char *host, char *port, char *path) {
 /*!
  * @brief res_failure returns an error message to the client
  */
-void response_failure(int connfd, const char *cause, const char *errnum,
-                      const char *shortmsg, const char *longmsg) {
+static inline void response_failure(int connfd, const char *cause,
+                                    const char *errnum, const char *shortmsg,
+                                    const char *longmsg) {
   char buf[MAXLINE], body[MAXBUF];
 
   // build the HTTP response body

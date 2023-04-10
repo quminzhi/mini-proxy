@@ -5,6 +5,17 @@ extern "C" {
 #include <proxy-module.h>
 }
 
+/* MUST: define agent request header info which is referenced by proxy-module */
+const char *user_agent_hdr =
+    "User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:10.0.3) Gecko/20120305 "
+    "Firefox/10.0.3\r\n";
+const char *accept_hdr =
+    "Accept: "
+    "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\n";
+const char *accept_encoding_hdr = "Accept-Encoding: gzip, deflate\r\n";
+const char *connection_hdr = "Connection: close\r\n";
+const char *proxy_connection_hdr = "Proxy-Connection: close\r\n\r\n";
+
 class ProxyModuleTest: public ::testing::Test {
 protected:
 
