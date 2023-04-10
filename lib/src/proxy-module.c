@@ -148,10 +148,8 @@ int forward_request_response(int connfd, char *host, char *port, char *path) {
 void read_request_header(rio_t *rio_ptr) {
   char buf[MAXLINE];
   rio_readlineb(rio_ptr, buf, MAXLINE);
-  LOG("%s", buf);
   while (strcmp(buf, "\r\n") != 0) {
     rio_readlineb(rio_ptr, buf, MAXLINE);
-    LOG("%s", buf);
   }
   return;
 }
