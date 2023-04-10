@@ -147,9 +147,11 @@ int forward_request_response(int connfd, char *host, char *port, char *path) {
  */
 void read_request_header(rio_t *rio_ptr) {
   char buf[MAXLINE];
+  int headerline = 0;
   rio_readlineb(rio_ptr, buf, MAXLINE);
   while (strcmp(buf, "\r\n") != 0) {
     rio_readlineb(rio_ptr, buf, MAXLINE);
+    if (++headerline < HEADER_LINE_SIZE) break;
   }
   return;
 }

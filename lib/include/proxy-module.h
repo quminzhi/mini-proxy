@@ -5,8 +5,7 @@
 #include <comm.h>
 #include <csapp.h>
 
-#define MAX_CACHE_SIZE 104900
-#define MAX_OBJECT_SIZE 102400 /* payload max size: 100KB */
+#define HEADER_LINE_SIZE 100
 
 /* define agent request header info */
 extern const char *user_agent_hdr;

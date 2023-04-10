@@ -15,6 +15,17 @@ add_library(
 target_include_directories(comm PUBLIC "${LIB_INCLUDE_DIR}")
 
 add_library(
+  cache SHARED
+  include/cache.h
+  src/cache.c
+)
+target_include_directories(cache PUBLIC "${LIB_INCLUDE_DIR}")
+target_link_libraries(cache PUBLIC 
+  comm
+  csapp
+)
+
+add_library(
   inet-helper SHARED
   include/inet-helper.h
   src/inet-helper.c
