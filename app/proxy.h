@@ -5,9 +5,10 @@
 #include <sbuf.h>
 
 #define NTHREADS 8
-#define SBUFSIZE 16
+#define SBUFSIZE 64
 
 sbuf_t sbuf;
+
 
 /* MUST: define agent request header info which is referenced by proxy-module */
 const char *user_agent_hdr =
