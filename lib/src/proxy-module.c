@@ -3,6 +3,7 @@
 #include <inet-helper.h>
 #include <proxy-module.h>
 #include <stdio.h>
+#include <cache.h>
 
 /*!
  * @brief solve: handle one HTTP request/response transaction

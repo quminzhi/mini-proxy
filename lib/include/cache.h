@@ -21,10 +21,9 @@ typedef struct cnode {
 
   struct cnode *prev;
   struct cnode *next;
-  size_t size;
 } cnode_t;
 
-extern cnode_t *tail;   /* tail pointer */
+extern cnode_t *end;    /* end pointer */
 extern cnode_t *front;  /* front pointer */
 extern int cache_count; /* count of nodes except front and end dummy nodes */
 extern volatile size_t cache_load; /* total cache load size */
@@ -34,16 +33,18 @@ extern sem_t mutex;          /* protect readcnt */
 extern sem_t w;              /* reader-favored style */
 
 void cache_init();
-void cache_destroy(cnode_t *node);
+void cache_destroy();
+
 void enqueue(cnode_t *node);
 cnode_t *dequeue();
+void update(cnode_t *node);
 
-cnode_t *new_node(char *host, char *port, char *path, char *payload,
-                  size_t size);
 cnode_t *is_cached(char *host, char *port, char *path);
-int is_match(cnode_t *this, char *host, char *port, char *path);
-
-int cache_check();
+int is_match(cnode_t *node, char *host, char *port, char *path);
 int is_empty();
+
+static inline void cache_check();
+cnode_t *new_node(char *host, char *port, char *path, char *payload);
+void free_node(cnode_t *node);
 
 #endif /* CACHE_H */
