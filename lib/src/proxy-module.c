@@ -22,12 +22,12 @@ void worker_main(int connfd) {
   memset(path, 0, sizeof path);
   memset(port, 0, sizeof port);
 
-  // associate rio with connfd
-  rio_t rio;
-  rio_readinitb(&rio, connfd);
+  // associate nio with connfd
+  nio_t nio;
+  nio_readinitb(&nio, connfd);
 
   size_t n;
-  if ((n = rio_readlineb(&rio, request, MAXLINE)) == 0) {
+  if ((n = nio_readlineb(&nio, request, MAXLINE)) == 0) {
     // if nothing received, return and close session
     return;
   }
@@ -46,7 +46,7 @@ void worker_main(int connfd) {
 
   // todo: no cache
   // forward request
-  read_request_header(&rio);
+  read_request_header(&nio);
   int forwardfd = open_clientfd(host, port);
   forward_request(forwardfd, host, port, path);
 
@@ -56,7 +56,9 @@ void worker_main(int connfd) {
   size_t sum = forward_response(forwardfd, connfd, payload);
   if (sum < MAX_OBJECT_SIZE) {
     add_cache(host, port, path, payload);
-    printf("%s\n", payload);
+    // printf("============ payload ==============\n");
+    // printf("%s\n", payload);
+    // printf("sum = %lu, payload = %lu\n", sum, strlen(payload));
   }
   LOG("Responded %lu bytes to connfd(%d) FRESH request\n", sum, connfd);
 }
@@ -132,14 +134,14 @@ void forward_request(int forwardfd, char *host, char *port, char *path) {
   char forwardbuf[MAXLINE]; /* buffer for forward request */
   // forward request
   sprintf(forwardbuf, "GET %s HTTP/1.0\r\n", path);
-  rio_writen(forwardfd, forwardbuf, strlen(forwardbuf));
+  nio_writen(forwardfd, forwardbuf, strlen(forwardbuf));
   sprintf(forwardbuf, "Host: %s\r\n", host);
-  rio_writen(forwardfd, forwardbuf, strlen(forwardbuf));
-  rio_writen(forwardfd, user_agent_hdr, strlen(user_agent_hdr));
-  rio_writen(forwardfd, accept_hdr, strlen(accept_hdr));
-  rio_writen(forwardfd, accept_encoding_hdr, strlen(accept_encoding_hdr));
-  rio_writen(forwardfd, connection_hdr, strlen(connection_hdr));
-  rio_writen(forwardfd, proxy_connection_hdr, strlen(proxy_connection_hdr));
+  nio_writen(forwardfd, forwardbuf, strlen(forwardbuf));
+  nio_writen(forwardfd, user_agent_hdr, strlen(user_agent_hdr));
+  nio_writen(forwardfd, accept_hdr, strlen(accept_hdr));
+  nio_writen(forwardfd, accept_encoding_hdr, strlen(accept_encoding_hdr));
+  nio_writen(forwardfd, connection_hdr, strlen(connection_hdr));
+  nio_writen(forwardfd, proxy_connection_hdr, strlen(proxy_connection_hdr));
 }
 
 /*!
@@ -150,18 +152,18 @@ void forward_request(int forwardfd, char *host, char *port, char *path) {
  * return size of response in byte
  */
 size_t forward_response(int forwardfd, int connfd, char *payload) {
-  rio_t forward_rio;
-  rio_readinitb(&forward_rio, forwardfd);
+  nio_t forward_nio;
+  nio_readinitb(&forward_nio, forwardfd);
 
   char forwardbuf[MAXLINE]; /* buffer for forward request */
   size_t n;
   size_t sum = 0; /* sum of forward respond size in byte */
-  while ((n = rio_readlineb(&forward_rio, forwardbuf, MAXLINE)) != 0) {
+  while ((n = nio_readlineb(&forward_nio, forwardbuf, MAXLINE)) != 0) {
     sum += n;
     if (sum <= MAX_OBJECT_SIZE) {
       strcat(payload, forwardbuf);
     }
-    rio_writen(connfd, forwardbuf, n);
+    nio_writen(connfd, forwardbuf, n);
   }
 
   return sum;
@@ -171,7 +173,7 @@ size_t forward_response(int forwardfd, int connfd, char *payload) {
  * @brief forward_response_cached respond cached byte stream back to the client
  */
 size_t forward_response_cached(int connfd, char *payload_cache) {
-  rio_writen(connfd, payload_cache, strlen(payload_cache));
+  nio_writen(connfd, payload_cache, strlen(payload_cache));
   return strlen(payload_cache);
 }
 
@@ -180,12 +182,12 @@ size_t forward_response_cached(int connfd, char *payload_cache) {
  *
  * note that request header ends with a blank line ("\r\n")
  */
-void read_request_header(rio_t *rio_ptr) {
+void read_request_header(nio_t *nio_ptr) {
   char buf[MAXLINE];
   int headerline = 0;
-  rio_readlineb(rio_ptr, buf, MAXLINE);
+  nio_readlineb(nio_ptr, buf, MAXLINE);
   while (strcmp(buf, "\r\n") != 0) {
-    rio_readlineb(rio_ptr, buf, MAXLINE);
+    nio_readlineb(nio_ptr, buf, MAXLINE);
     if (++headerline < HEADER_LINE_SIZE)
       break;
   }
@@ -289,10 +291,10 @@ static inline void response_failure(int connfd, const char *cause,
 
   // print the HTTP response
   sprintf(buf, "HTTP/1.0 %s %s\r\n", errnum, shortmsg);
-  rio_writen(connfd, buf, strlen(buf));
+  nio_writen(connfd, buf, strlen(buf));
   sprintf(buf, "Content-type: text/html\r\n");
-  rio_writen(connfd, buf, strlen(buf));
+  nio_writen(connfd, buf, strlen(buf));
   sprintf(buf, "Content-length: %d\r\n\r\n", (int)strlen(body));
-  rio_writen(connfd, buf, strlen(buf));
-  rio_writen(connfd, body, strlen(body));
+  nio_writen(connfd, buf, strlen(buf));
+  nio_writen(connfd, body, strlen(body));
 }

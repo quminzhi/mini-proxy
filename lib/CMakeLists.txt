@@ -15,6 +15,16 @@ add_library(
 target_include_directories(comm PUBLIC "${LIB_INCLUDE_DIR}")
 
 add_library(
+  nio SHARED
+  include/nio.h
+  src/nio.c
+)
+target_include_directories(nio PUBLIC "${LIB_INCLUDE_DIR}")
+target_link_libraries(nio PUBLIC 
+  csapp
+)
+
+add_library(
   cache SHARED
   include/cache.h
   src/cache.c
@@ -43,6 +53,7 @@ target_link_libraries(proxy-module PUBLIC
   comm
   inet-helper
   cache
+  nio
 )
 
 add_library(
