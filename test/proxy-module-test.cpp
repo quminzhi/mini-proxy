@@ -65,5 +65,4 @@ TEST_F(ProxyModuleTest, TestParseRUI) {
   EXPECT_EQ(strcmp(host, "www.google.com"), 0);
   EXPECT_EQ(strcmp(port, "80"), 0);
   EXPECT_EQ(strcmp(path, "/"), 0);
-
 }

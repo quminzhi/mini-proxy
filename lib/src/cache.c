@@ -249,9 +249,9 @@ char *is_cached(char *host, char *port, char *path) {
 static inline int is_match(cnode_t *node, char *host, char *port, char *path) {
   if (strcasecmp(node->host, host) != 0)
     return 0;
-  if (strcasecmp(node->port, host) != 0)
+  if (strcasecmp(node->port, port) != 0)
     return 0;
-  if (strcasecmp(node->path, host) != 0)
+  if (strcasecmp(node->path, path) != 0)
     return 0;
   return 1;
 }

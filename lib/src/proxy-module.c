@@ -37,7 +37,7 @@ void solve(int connfd) {
   }
 
   // todo: cached
-  char *payload_cache;
+  char *payload_cache = NULL;
   if ((payload_cache = is_cached(host, port, path)) != NULL) {
     size_t sum = forward_response_cached(connfd, payload_cache);
     LOG("Responded %lu bytes to connfd(%d) CACHED\n", sum, connfd);

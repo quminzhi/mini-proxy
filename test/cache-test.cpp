@@ -22,7 +22,7 @@ TEST_F(CacheTest, TestCacheQueueInitialization) {
 }
 
 TEST_F(CacheTest, TestEnqueue) {
-  char *host = "https://www.google.com";
+  char *host = "http://www.google.com";
   char *port = "80";
   char *path = "/developer/hello.cpp";
   char *payload = "232kj3jk232nmnmasbcbuewei";
@@ -38,7 +38,7 @@ TEST_F(CacheTest, TestEnqueue) {
 
 TEST_F(CacheTest, TestDequeue) {
   char *host = "https://www.google.com";
-  char *port = "80";
+  char *port = "443";
   char *path = "/developer/hello.cpp";
   char *payload = "232kj3jk232nmnmasbcbuewei";
   cnode_t *node = new_node(host, port, path, payload);
@@ -93,4 +93,26 @@ TEST_F(CacheTest, TestLRUPolicy) {
   size_t total_payload =
       strlen(node1->payload) + strlen(node2->payload) + strlen(node3->payload);
   ASSERT_EQ(cache_load, total_payload);
+}
+
+TEST_F(CacheTest, TestIsCached) {
+  char *host1 = "http://www.google.com";
+  char *port1 = "80";
+  char *path1 = "/developer/hello.cpp";
+  char *payload1 = "232kj3jewei";
+  add_cache(host1, port1, path1, payload1);
+  char *host2 = "https://www.windows.com";
+  char *port2 = "443";
+  char *path2 = "/developer/hello.cpp";
+  char *payload2 = "232k";
+  add_cache(host2, port2, path2, payload2);
+  char *host3 = "https://www.google.com";
+  char *port3 = "443";
+  char *path3 = "/developer/home.html";
+  char *payload3 = "232kj3sssk232nmnmasbcbuewei";
+  add_cache(host3, port3, path3, payload3);
+
+  char *payload_cache = is_cached(host1, port1, path1);
+  ASSERT_TRUE(payload_cache != NULL);
+  ASSERT_EQ(strcmp(payload_cache, payload1), 0);
 }
