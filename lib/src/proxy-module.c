@@ -56,6 +56,7 @@ void worker_main(int connfd) {
   size_t sum = forward_response(forwardfd, connfd, payload);
   if (sum < MAX_OBJECT_SIZE) {
     add_cache(host, port, path, payload);
+    printf("%s\n", payload);
   }
   LOG("Responded %lu bytes to connfd(%d) FRESH request\n", sum, connfd);
 }
@@ -156,7 +157,6 @@ size_t forward_response(int forwardfd, int connfd, char *payload) {
   size_t n;
   size_t sum = 0; /* sum of forward respond size in byte */
   while ((n = rio_readlineb(&forward_rio, forwardbuf, MAXLINE)) != 0) {
-    printf("%s\n", forwardbuf);
     sum += n;
     if (sum <= MAX_OBJECT_SIZE) {
       strcat(payload, forwardbuf);
