@@ -1,9 +1,9 @@
+#include <cache.h>
 #include <comm.h>
 #include <csapp.h>
 #include <inet-helper.h>
 #include <proxy-module.h>
 #include <stdio.h>
-#include <cache.h>
 
 /*!
  * @brief solve: handle one HTTP request/response transaction
@@ -34,9 +34,33 @@ void solve(int connfd) {
     // if it is a not valid requet, return and close session
     return;
   }
-  read_request_header(&rio);
-  int sum = forward_request_response(connfd, host, port, path);
-  LOG("Responded %d bytes for connfd(%d)\n", sum, connfd);
+
+  // INFO: check if request is cached
+  cnode_t *node = NULL;
+  node = is_cached(host, port, path);
+
+  if (node != NULL) {
+    // if cached then update and forward
+    update(node);
+    size_t sum = forward_response_cached(connfd, node);
+    LOG("Responded %lu bytes to connfd(%d) CACHED\n", sum, connfd);
+  } else {
+    // if not cached, forward and cache
+    read_request_header(&rio);
+
+    int forwardfd = open_clientfd(host, port);
+    forward_request(forwardfd, host, port, path);
+
+    char payload[MAX_OBJECT_SIZE]; /* cache for respond info */
+    memset(payload, 0, sizeof payload);
+    size_t sum = forward_response(forwardfd, connfd, payload);
+    if (sum < MAX_OBJECT_SIZE) {
+      cnode_t *node = new_node(host, port, path, payload);
+      enqueue(node);
+    }
+
+    LOG("Responded %lu bytes to connfd(%d) FRESH request\n", sum, connfd);
+  }
 }
 
 /*!
@@ -96,25 +120,15 @@ int parse_request(int connfd, const char *request, char *host, char *port,
     LOG("Responded failure back to client\n");
     return 0;
   }
-
   LOG("host = %s, port = %s, path = %s\n", host, port, path);
 
   return 1;
 }
 
 /*!
- * @brief forward_response forwards response from destination server to the
- * client
- *
- * return total response in bytes
+ * @brief forward_request forwards request to destination server
  */
-int forward_request_response(int connfd, char *host, char *port, char *path) {
-  char payload[MAX_OBJECT_SIZE]; /* cache for respond info */
-
-  rio_t forward_rio;
-  int forwardfd = open_clientfd(host, port);
-  rio_readinitb(&forward_rio, forwardfd);
-
+void forward_request(int forwardfd, char *host, char *port, char *path) {
   char forwardbuf[MAXLINE]; /* buffer for forward request */
   // forward request
   sprintf(forwardbuf, "GET %s HTTP/1.0\r\n", path);
@@ -126,19 +140,39 @@ int forward_request_response(int connfd, char *host, char *port, char *path) {
   rio_writen(forwardfd, accept_encoding_hdr, strlen(accept_encoding_hdr));
   rio_writen(forwardfd, connection_hdr, strlen(connection_hdr));
   rio_writen(forwardfd, proxy_connection_hdr, strlen(proxy_connection_hdr));
+}
 
-  // forward response
+/*!
+ * @brief forward_response forwards response back to the client
+ *
+ * pass payload back to calling function for caching if possible
+ *
+ * return size of response in byte
+ */
+size_t forward_response(int forwardfd, int connfd, char *payload) {
+  rio_t forward_rio;
+  rio_readinitb(&forward_rio, forwardfd);
+
+  char forwardbuf[MAXLINE]; /* buffer for forward request */
   size_t n;
-  int sum = 0; /* sum of forward respond size in byte */
-  memset(payload, 0, sizeof payload);
+  size_t sum = 0; /* sum of forward respond size in byte */
   while ((n = rio_readlineb(&forward_rio, forwardbuf, MAXLINE)) != 0) {
     sum += n;
     if (sum <= MAX_OBJECT_SIZE) {
       strcat(payload, forwardbuf);
-      rio_writen(connfd, forwardbuf, n);
     }
+    rio_writen(connfd, forwardbuf, n);
   }
+
   return sum;
+}
+
+/*!
+ * @brief forward_response_cached respond cached byte stream back to the client
+ */
+size_t forward_response_cached(int connfd, cnode_t *node) {
+  rio_writen(connfd, node->payload, strlen(node->payload));
+  return strlen(node->payload);
 }
 
 /*!
@@ -152,7 +186,8 @@ void read_request_header(rio_t *rio_ptr) {
   rio_readlineb(rio_ptr, buf, MAXLINE);
   while (strcmp(buf, "\r\n") != 0) {
     rio_readlineb(rio_ptr, buf, MAXLINE);
-    if (++headerline < HEADER_LINE_SIZE) break;
+    if (++headerline < HEADER_LINE_SIZE)
+      break;
   }
   return;
 }

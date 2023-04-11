@@ -39,9 +39,10 @@ add_library(
 )
 target_include_directories(proxy-module PUBLIC "${LIB_INCLUDE_DIR}")
 target_link_libraries(proxy-module PUBLIC 
+  csapp
   comm
   inet-helper
-  csapp
+  cache
 )
 
 add_library(

@@ -7,13 +7,13 @@ int cache_count; /* count of nodes except front and end dummy nodes */
 volatile size_t cache_load; /* total cache load size */
 
 volatile int readcnt; /* zero initially */
-sem_t mutex;          /* protect readcnt */
-sem_t w;              /* reader-favored style */
+sem_t mutex;          /* reader lock to protect readcnt */
+sem_t w;              /* writer lock */
 
 /*!
  * @brief cache_init initialize cache queue
  *
- * cache queue: dummy -> node 1 -> node 2 -> ... -> node n -> dummy
+ * cache queue: dummy -> node 1 -> node 2 -> ... -> node n -> dummy (doubly)
  *              front    LRU  --------------------- MRU       end
  *
  * LRU: least recently used, MRU: most recently used
@@ -29,6 +29,43 @@ void cache_init() {
   end = new_node("", "", "", "");
   front->next = end, front->prev = NULL;
   end->prev = front, end->next = NULL;
+
+  // initialize mutex
+  readcnt = 0;
+  sem_init(&w, 0, 1);
+  sem_init(&mutex, 0, 1);
+}
+
+static inline void pre_read() {
+  P(&mutex);
+  // require read lock and increase number of readers
+  readcnt++;
+  if (readcnt == 1) {
+    // if any reader is reading, block writer lock
+    P(&w);
+  }
+  // release read lock so that other threads have access to read
+  V(&mutex);
+}
+
+static inline void post_read() {
+  P(&mutex);
+  readcnt--;
+  if (readcnt == 0) {
+    // if no reader appears, release writer lock
+    V(&w);
+  }
+  V(&mutex);
+}
+
+static inline void pre_write() {
+  // require writer lock
+  P(&w);
+}
+
+static inline void post_write() {
+  // release writer lock
+  V(&w);
 }
 
 /*!
@@ -82,6 +119,7 @@ void cache_destroy() {
  * node must be a valid cache node.
  */
 void enqueue(cnode_t *node) {
+  pre_write();
   node->prev = end->prev;
   node->next = end;
   end->prev = node;
@@ -96,6 +134,8 @@ void enqueue(cnode_t *node) {
     del = dequeue();
     free_node(del);
   }
+  post_write();
+  cache_check();
 }
 
 /*!
@@ -115,6 +155,7 @@ cnode_t *dequeue() {
   cache_count--;
   cache_load -= strlen(del->payload);
 
+  cache_check();
   return del;
 }
 
@@ -126,6 +167,7 @@ cnode_t *dequeue() {
  */
 void update(cnode_t *node) {
   cnode_t *tomove = node;
+  pre_write();
   tomove->prev->next = tomove->next;
   tomove->next->prev = tomove->prev;
 
@@ -133,6 +175,8 @@ void update(cnode_t *node) {
   tomove->prev = end->prev;
   end->prev = tomove;
   tomove->prev->next = tomove;
+  post_write();
+  cache_check();
 }
 
 /*!
@@ -145,9 +189,10 @@ int is_empty() { return front->next == end && front == end->prev; }
 /*!
  * @brief is_cached checks if node with key (host, port, path) is cached
  *
- * return the cached node if success, NULL otherwise
+ * return the cached node if cached, NULL if not 
  */
 cnode_t *is_cached(char *host, char *port, char *path) {
+  pre_read();
   if (is_empty())
     return NULL;
   cnode_t *p;
@@ -156,6 +201,7 @@ cnode_t *is_cached(char *host, char *port, char *path) {
       return p;
     }
   }
+  post_read();
   return NULL;
 }
 
@@ -164,7 +210,7 @@ cnode_t *is_cached(char *host, char *port, char *path) {
  *
  * return 1 if match, 0 if not match
  */
-int is_match(cnode_t *node, char *host, char *port, char *path) {
+static inline int is_match(cnode_t *node, char *host, char *port, char *path) {
   if (strcasecmp(node->host, host) != 0)
     return 0;
   if (strcasecmp(node->port, host) != 0)

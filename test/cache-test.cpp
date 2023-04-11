@@ -52,3 +52,45 @@ TEST_F(CacheTest, TestDequeue) {
   ASSERT_EQ(cache_count, 0);
   ASSERT_EQ(cache_load, 0);
 }
+
+TEST_F(CacheTest, TestLRUPolicy) {
+  char *host1 = "http://www.google.com";
+  char *port1 = "80";
+  char *path1 = "/developer/hello.cpp";
+  char *payload1 = "232kj3jewei";
+  cnode_t *node1 = new_node(host1, port1, path1, payload1);
+  enqueue(node1);
+  char *host2 = "https://www.windows.com";
+  char *port2 = "443";
+  char *path2 = "/developer/hello.cpp";
+  char *payload2 = "232k";
+  cnode_t *node2 = new_node(host2, port2, path2, payload2);
+  enqueue(node2);
+  char *host3 = "https://www.google.com";
+  char *port3 = "443";
+  char *path3 = "/developer/home.html";
+  char *payload3 = "232kj3sssk232nmnmasbcbuewei";
+  cnode_t *node3 = new_node(host3, port3, path3, payload3);
+  enqueue(node3);
+
+  cnode_t *last1 = end->prev;
+  ASSERT_TRUE(strcmp(last1->host, host3) == 0);
+  cnode_t *last2 = last1->prev;
+  ASSERT_TRUE(strcmp(last2->host, host2) == 0);
+  cnode_t *last3 = last2->prev;
+  ASSERT_TRUE(strcmp(last3->host, host1) == 0);
+
+  update(node2);
+  last1 = end->prev;
+  ASSERT_TRUE(strcmp(last1->host, host2) == 0);
+  last2 = last1->prev;
+  ASSERT_TRUE(strcmp(last2->host, host3) == 0);
+  last3 = last2->prev;
+  ASSERT_TRUE(strcmp(last3->host, host1) == 0);
+
+  ASSERT_EQ(cache_count, 3);
+  ;
+  size_t total_payload =
+      strlen(node1->payload) + strlen(node2->payload) + strlen(node3->payload);
+  ASSERT_EQ(cache_load, total_payload);
+}
