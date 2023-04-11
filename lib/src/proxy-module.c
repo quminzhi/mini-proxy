@@ -10,7 +10,8 @@
  *
  *  following things will be done for making a transaction:
  *    - read ana parse request
- *    - forward request/response transaction
+ *    - forward request
+ *    - response with cache or without cache
  */
 void solve(int connfd) {
   char request[MAXLINE]; /* save request */
@@ -35,32 +36,28 @@ void solve(int connfd) {
     return;
   }
 
-  // INFO: check if request is cached
-  cnode_t *node = NULL;
-  node = is_cached(host, port, path);
-
-  if (node != NULL) {
-    // if cached then update and forward
-    update(node);
-    size_t sum = forward_response_cached(connfd, node);
+  // todo: cached
+  char *payload_cache;
+  if ((payload_cache = is_cached(host, port, path)) != NULL) {
+    size_t sum = forward_response_cached(connfd, payload_cache);
     LOG("Responded %lu bytes to connfd(%d) CACHED\n", sum, connfd);
-  } else {
-    // if not cached, forward and cache
-    read_request_header(&rio);
-
-    int forwardfd = open_clientfd(host, port);
-    forward_request(forwardfd, host, port, path);
-
-    char payload[MAX_OBJECT_SIZE]; /* cache for respond info */
-    memset(payload, 0, sizeof payload);
-    size_t sum = forward_response(forwardfd, connfd, payload);
-    if (sum < MAX_OBJECT_SIZE) {
-      cnode_t *node = new_node(host, port, path, payload);
-      enqueue(node);
-    }
-
-    LOG("Responded %lu bytes to connfd(%d) FRESH request\n", sum, connfd);
+    return;
   }
+
+  // todo: no cache
+  // forward request
+  read_request_header(&rio);
+  int forwardfd = open_clientfd(host, port);
+  forward_request(forwardfd, host, port, path);
+
+  // forward response
+  char payload[MAX_OBJECT_SIZE]; /* cache for respond info */
+  memset(payload, 0, sizeof payload);
+  size_t sum = forward_response(forwardfd, connfd, payload);
+  if (sum < MAX_OBJECT_SIZE) {
+    add_cache(host, port, path, payload);
+  }
+  LOG("Responded %lu bytes to connfd(%d) FRESH request\n", sum, connfd);
 }
 
 /*!
@@ -170,9 +167,9 @@ size_t forward_response(int forwardfd, int connfd, char *payload) {
 /*!
  * @brief forward_response_cached respond cached byte stream back to the client
  */
-size_t forward_response_cached(int connfd, cnode_t *node) {
-  rio_writen(connfd, node->payload, strlen(node->payload));
-  return strlen(node->payload);
+size_t forward_response_cached(int connfd, char *payload_cache) {
+  rio_writen(connfd, payload_cache, strlen(payload_cache));
+  return strlen(payload_cache);
 }
 
 /*!

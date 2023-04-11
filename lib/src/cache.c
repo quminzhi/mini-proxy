@@ -1,6 +1,14 @@
 #include <assert.h>
 #include <cache.h>
 
+/**********************************************
+ * INFO: 
+ *  - release lock at every exit point
+ *  - do not nest critical sections (nested 
+ *  mutex lock is a fatal error) 
+ *
+ *********************************************/
+
 cnode_t *end;    /* end pointer */
 cnode_t *front;  /* front pointer */
 int cache_count; /* count of nodes except front and end dummy nodes */
@@ -21,9 +29,6 @@ sem_t w;              /* writer lock */
 void cache_init() {
   cache_load = 0;
   cache_count = 0;
-  readcnt = 0;
-  sem_init(&mutex, 0, 1);
-  sem_init(&w, 0, 1);
 
   front = new_node("", "", "", "");
   end = new_node("", "", "", "");
@@ -99,9 +104,25 @@ void free_node(cnode_t *node) {
 }
 
 /*!
+ * @brief add_cache add a cache record into cache queue
+ */
+void add_cache(char *host, char *port, char *path, char *payload) {
+  cnode_t *node = new_node(host, port, path, payload);
+  enqueue(node);
+
+  // remove LRU nodes if cache load overflows
+  cnode_t *del;
+  while (cache_load > MAX_CACHE_SIZE) {
+    del = dequeue();
+    free_node(del);
+  }
+}
+
+/*!
  * @brief cache_destroy destroys the cache queue
  */
 void cache_destroy() {
+  pre_write();
   cnode_t *nxt;
   for (cnode_t *p = front; p != NULL;) {
     nxt = p->next;
@@ -111,6 +132,7 @@ void cache_destroy() {
 
   cache_load = 0;
   cache_count = 0;
+  post_write();
 }
 
 /*!
@@ -128,12 +150,6 @@ void enqueue(cnode_t *node) {
   cache_count++;
   cache_load += strlen(node->payload);
 
-  // remove LRU nodes if cache load overflows
-  cnode_t *del;
-  while (cache_load > MAX_CACHE_SIZE) {
-    del = dequeue();
-    free_node(del);
-  }
   post_write();
   cache_check();
 }
@@ -146,8 +162,11 @@ void enqueue(cnode_t *node) {
  * return a pointer to that node.
  */
 cnode_t *dequeue() {
-  if (is_empty())
+  pre_write();
+  if (is_empty()) {
+    post_write();
     return NULL;
+  }
   cnode_t *del = front->next;
   front->next = del->next;
   front->next->prev = front;
@@ -155,6 +174,7 @@ cnode_t *dequeue() {
   cache_count--;
   cache_load -= strlen(del->payload);
 
+  post_write();
   cache_check();
   return del;
 }
@@ -189,16 +209,22 @@ int is_empty() { return front->next == end && front == end->prev; }
 /*!
  * @brief is_cached checks if node with key (host, port, path) is cached
  *
- * return the cached node if cached, NULL if not 
+ * note: update if found
+ *
+ * return address and payload, NULL if not cached
  */
-cnode_t *is_cached(char *host, char *port, char *path) {
+char *is_cached(char *host, char *port, char *path) {
   pre_read();
-  if (is_empty())
+  if (is_empty()) {
+    post_read();
     return NULL;
+  }
   cnode_t *p;
   for (p = end->prev; p != front; p = p->prev) {
     if (is_match(p, host, port, path)) {
-      return p;
+      post_read(); // release before update
+      update(p);   // update if cached
+      return p->payload;
     }
   }
   post_read();
@@ -226,6 +252,7 @@ static inline int is_match(cnode_t *node, char *host, char *port, char *path) {
  * when cache count = 0, 1, and more, if cache queue is correct
  */
 static inline void cache_check() {
+  pre_read();
   if (cache_count == 0) {
     assert(is_empty() == 1);
     assert(front->prev == NULL && end->next == NULL);
@@ -237,4 +264,5 @@ static inline void cache_check() {
     }
     assert(count == cache_count);
   }
+  post_read();
 }

@@ -79,6 +79,12 @@ void sigpipe_handler(int sig) {
   return;
 }
 
+void sigterm_handler(int sig) {
+  cache_destroy();
+  INFO("Cache destroyed, exit by SIGTERM\n");
+  return;
+}
+
 int main(int argc, char *argv[]) {
 
   if (argc != 2) {
@@ -87,12 +93,18 @@ int main(int argc, char *argv[]) {
   }
 
   signal(SIGPIPE, sigpipe_handler);
+  signal(SIGTERM, sigterm_handler);
+
+  cache_init();
+  sbuf_setup(&sbuf, SBUFSIZE);
+  worker_setup();
 
   int listenfd = open_listenfd(argv[1]);
   INFO("Listenfd has been initialized successfully\n");
-  sbuf_setup(&sbuf, SBUFSIZE);
-  worker_setup();
   listen_on(listenfd);
+
+  // destroy cache to prevent memory leakage
+  cache_destroy();
 
   return 0;
 }

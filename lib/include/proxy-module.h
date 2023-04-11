@@ -24,7 +24,7 @@ void read_request_header(rio_t *rio_ptr);
 int forward_request_response(int connfd, char *host, char *port, char *path);
 void forward_request(int forwardfd, char *host, char *port, char *path);
 size_t forward_response(int forwardfd, int connfd, char *payload);
-size_t forward_response_cached(int connfd, cnode_t *node);
+size_t forward_response_cached(int connfd, char *payload_cache);
 
 static inline void response_failure(int connfd, const char *cause,
                                     const char *errnum, const char *shortmsg,
