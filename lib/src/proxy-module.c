@@ -56,9 +56,6 @@ void worker_main(int connfd) {
   size_t sum = forward_response(forwardfd, connfd, payload);
   if (sum < MAX_OBJECT_SIZE) {
     add_cache(host, port, path, payload);
-    // printf("============ payload ==============\n");
-    // printf("%s\n", payload);
-    // printf("sum = %lu, payload = %lu\n", sum, strlen(payload));
   }
   LOG("Responded %lu bytes to connfd(%d) FRESH request\n", sum, connfd);
 }
@@ -158,10 +155,12 @@ size_t forward_response(int forwardfd, int connfd, char *payload) {
   char forwardbuf[MAXLINE]; /* buffer for forward request */
   size_t n;
   size_t sum = 0; /* sum of forward respond size in byte */
+  char *payload_offset = payload;
   while ((n = nio_readlineb(&forward_nio, forwardbuf, MAXLINE)) != 0) {
     sum += n;
     if (sum <= MAX_OBJECT_SIZE) {
-      strcat(payload, forwardbuf);
+      memcpy(payload_offset, forwardbuf, n);
+      payload_offset += n;
     }
     nio_writen(connfd, forwardbuf, n);
   }
