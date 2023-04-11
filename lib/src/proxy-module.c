@@ -6,14 +6,14 @@
 #include <stdio.h>
 
 /*!
- * @brief solve: handle one HTTP request/response transaction
+ * @brief worker_main: handle one HTTP request/response transaction
  *
  *  following things will be done for making a transaction:
  *    - read ana parse request
  *    - forward request
  *    - response with cache or without cache
  */
-void solve(int connfd) {
+void worker_main(int connfd) {
   char request[MAXLINE]; /* save request */
   char host[MAXLINE];    /* save host */
   char path[MAXLINE];    /* save path */
@@ -156,6 +156,7 @@ size_t forward_response(int forwardfd, int connfd, char *payload) {
   size_t n;
   size_t sum = 0; /* sum of forward respond size in byte */
   while ((n = rio_readlineb(&forward_rio, forwardbuf, MAXLINE)) != 0) {
+    printf("%s\n", forwardbuf);
     sum += n;
     if (sum <= MAX_OBJECT_SIZE) {
       strcat(payload, forwardbuf);

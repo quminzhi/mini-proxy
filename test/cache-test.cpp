@@ -1,5 +1,6 @@
+#include <cstring>
 #include <gtest/gtest.h>
-#include <string.h>
+#include <string>
 
 extern "C" {
 #include <cache.h>

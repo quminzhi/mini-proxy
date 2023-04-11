@@ -15,7 +15,7 @@ extern const char *accept_encoding_hdr;
 extern const char *connection_hdr;
 extern const char *proxy_connection_hdr;
 
-void solve(int connfd);
+void worker_main(int connfd);
 int parse_request(int connfd, const char *request, char *host, char *port,
                   char *path);
 int parse_uri(const char *uri, char *host, char *port, char *path);

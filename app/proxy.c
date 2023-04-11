@@ -66,7 +66,7 @@ void *worker(void *vargp) {
     int connfd = sbuf_remove(&sbuf);
     LOG("Worker[%lu] retrieved connfd(%d)\n", wid, connfd);
     // service
-    solve(connfd);
+    worker_main(connfd);
     close(connfd);
     LOG("Worker[%lu] has released connfd(%d)\n", wid, connfd);
   }
