@@ -1,11 +1,12 @@
 #include <assert.h>
 #include <cache.h>
+#include <comm.h>
 
 /**********************************************
- * INFO: 
+ * INFO:
  *  - release lock at every exit point
- *  - do not nest critical sections (nested 
- *  mutex lock is a fatal error) 
+ *  - do not nest critical sections (nested
+ *  mutex lock is a fatal error)
  *
  *********************************************/
 
@@ -39,6 +40,7 @@ void cache_init() {
   readcnt = 0;
   sem_init(&w, 0, 1);
   sem_init(&mutex, 0, 1);
+  INFO("Cache queue has been initialized, OK\n");
 }
 
 static inline void pre_read() {
@@ -110,11 +112,16 @@ void add_cache(char *host, char *port, char *path, char *payload) {
   cnode_t *node = new_node(host, port, path, payload);
   enqueue(node);
 
+  LOG("Added a new cache line (%s, %s, %s) => %s\n", host, port, path, payload);
+
   // remove LRU nodes if cache load overflows
-  cnode_t *del;
-  while (cache_load > MAX_CACHE_SIZE) {
-    del = dequeue();
-    free_node(del);
+  if (cache_load > MAX_CACHE_SIZE) {
+    INFO("Clear cache buffer for new cache lines\n");
+    cnode_t *del;
+    while (cache_load > MAX_CACHE_SIZE) {
+      del = dequeue();
+      free_node(del);
+    }
   }
 }
 
@@ -133,6 +140,7 @@ void cache_destroy() {
   cache_load = 0;
   cache_count = 0;
   post_write();
+  INFO("Cache has been destroyed, OK\n");
 }
 
 /*!
@@ -224,9 +232,11 @@ char *is_cached(char *host, char *port, char *path) {
     if (is_match(p, host, port, path)) {
       post_read(); // release before update
       update(p);   // update if cached
+      LOG("(%s, %s, %s) has been cached => %s\n", host, port, path, p->payload);
       return p->payload;
     }
   }
+  LOG("(%s, %s, %s) is not cached\n", host, port, path);
   post_read();
   return NULL;
 }

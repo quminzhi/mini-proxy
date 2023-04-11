@@ -24,6 +24,13 @@
           ANSI_COLOR_BLUE "INFO: [%s, %d, %s]\n" format ANSI_COLOR_RESET,      \
           __FILE__, __LINE__, __func__, ##__VA_ARGS__);
 
+#define WARNING(format, ...)                                                      \
+  fflush(stdout);                                                              \
+  fflush(stderr);                                                              \
+  fprintf(stdout,                                                              \
+          ANSI_COLOR_RED "WARNING: [%s, %d, %s]\n" format ANSI_COLOR_RESET,      \
+          __FILE__, __LINE__, __func__, ##__VA_ARGS__);
+
 #define ERROR(exitcode, format, ...)                                           \
   fflush(stdout);                                                              \
   fflush(stderr);                                                              \

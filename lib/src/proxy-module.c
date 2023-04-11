@@ -81,6 +81,7 @@ int parse_request(int connfd, const char *request, char *host, char *port,
     response_failure(connfd, request, "400", "Bad request",
                      "Valid request format: [method] [uri] [version], ex> "
                      "GET http://google.com HTTP/1.0");
+    WARNING("Empty request detected\n");
     return 0;
   }
 
@@ -91,14 +92,14 @@ int parse_request(int connfd, const char *request, char *host, char *port,
     response_failure(connfd, request, "400", "Bad request",
                      "Valid request format: [method] [uri] [version], ex> "
                      "GET http://google.com HTTP/1.0");
-    LOG("Responded failure back to client\n");
+    WARNING("Invalid request format, empty field found\n");
     return 0;
   }
 
   if (strcasecmp(method, "GET") != 0) {
     response_failure(connfd, method, "501", "Not implemented",
                      "Mini Proxy does not implement this method yet");
-    LOG("Responded failure back to client\n");
+    WARNING("Invalid method found => %s\n", method);
     return 0;
   }
 
@@ -107,16 +108,17 @@ int parse_request(int connfd, const char *request, char *host, char *port,
     response_failure(connfd, protocol, "400", "Bad request",
                      "Mini Proxy requires request version to be either "
                      "HTTP/1.0 or HTPP/1.1");
-    LOG("Responded failure back to client\n");
+    WARNING("Invalid HTTP version => %s\n", protocol);
     return 0;
   }
 
   if (!parse_uri(uri, host, port, path)) {
     response_failure(connfd, uri, "404", "Not found",
                      "Mini Proxy couldn't parse the request");
-    LOG("Responded failure back to client\n");
+    WARNING("Failed to parse URI => %s\n", uri);
     return 0;
   }
+
   LOG("host = %s, port = %s, path = %s\n", host, port, path);
 
   return 1;
@@ -211,7 +213,7 @@ int parse_uri(const char *uri, char *host, char *port, char *path) {
   strncpy(scheme, uri, len);
   scheme[len] = '\0';
   if (strcasecmp(scheme, "http") != 0) {
-    LOG("Requested uri includes unsupported scheme, only support http request "
+    WARNING("Requested uri includes unsupported scheme, only support HTTP request "
         "so far");
     return 0;
   }

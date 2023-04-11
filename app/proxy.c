@@ -75,7 +75,7 @@ void *worker(void *vargp) {
 }
 
 void sigpipe_handler(int sig) {
-  INFO("SIGPIPE received: pipe was broken\n");
+  WARNING("SIGPIPE received: pipe was broken\n");
   return;
 }
 
