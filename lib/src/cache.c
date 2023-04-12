@@ -40,7 +40,6 @@ void cache_init() {
   readcnt = 0;
   sem_init(&w, 0, 1);
   sem_init(&mutex, 0, 1);
-  INFO("Cache queue has been initialized, OK\n");
 }
 
 static inline void pre_read() {
@@ -118,7 +117,6 @@ void add_cache(char *host, char *port, char *path, char *payload, size_t bytesiz
 
   // remove LRU nodes if cache load overflows
   if (cache_load > MAX_CACHE_SIZE) {
-    INFO("Clear cache buffer for new cache lines\n");
     cnode_t *del;
     while (cache_load > MAX_CACHE_SIZE) {
       del = dequeue();
@@ -155,7 +153,6 @@ void cache_destroy() {
   cache_load = 0;
   cache_count = 0;
   post_write();
-  INFO("Cache has been destroyed, OK\n");
 }
 
 /*!

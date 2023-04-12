@@ -39,9 +39,9 @@ void worker_main(int connfd) {
   // todo: cached
   int rc = 0;
   char payload_cache[MAX_OBJECT_SIZE]; /* pointer to payload */
-  size_t bytesize;       /* pointer to payload size */
+  size_t bytesize;                     /* pointer to payload size */
   if ((rc = is_cached(host, port, path, payload_cache, &bytesize)) != 0) {
-    LOG("CACHE HIT!\n");
+    printf("CACHE HIT!\n");
     size_t sum = forward_response_cached(connfd, payload_cache, bytesize);
     LOG("Responded %lu bytes to connfd(%d) CACHED\n", sum, connfd);
     return;
@@ -54,7 +54,7 @@ void worker_main(int connfd) {
   forward_request(forwardfd, host, port, path);
 
   // forward response
-  WARNING("CACHE MISS!\n");
+  printf("CACHE MISS!\n");
   char payload[MAX_OBJECT_SIZE]; /* cache for respond info */
   memset(payload, 0, sizeof payload);
   size_t sum = forward_response(forwardfd, connfd, payload);
@@ -86,7 +86,7 @@ int parse_request(int connfd, const char *request, char *host, char *port,
     response_failure(connfd, request, "400", "Bad request",
                      "Valid request format: [method] [uri] [version], ex> "
                      "GET http://google.com HTTP/1.0");
-    WARNING("Empty request detected\n");
+    printf("Empty request detected\n");
     return 0;
   }
 
@@ -97,7 +97,7 @@ int parse_request(int connfd, const char *request, char *host, char *port,
     response_failure(connfd, request, "400", "Bad request",
                      "Valid request format: [method] [uri] [version], ex> "
                      "GET http://google.com HTTP/1.0");
-    WARNING("Invalid request format, empty field found\n");
+    printf("Invalid request format, empty field found\n");
     return 0;
   }
 
@@ -221,7 +221,7 @@ int parse_uri(const char *uri, char *host, char *port, char *path) {
   strncpy(scheme, uri, len);
   scheme[len] = '\0';
   if (strcasecmp(scheme, "http") != 0) {
-    WARNING(
+    printf(
         "Requested uri includes unsupported scheme, only support HTTP request "
         "so far");
     return 0;

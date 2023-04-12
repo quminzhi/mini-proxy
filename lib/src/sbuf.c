@@ -9,12 +9,10 @@ void sbuf_setup(sbuf_ptr_t sp, int n) {
   sem_init(&sp->mutex, 0, 1); /* lock */
   sem_init(&sp->slots, 0, n);
   sem_init(&sp->items, 0, 0);
-  INFO("Buffer queue has been initialized, OK\n");
 }
 
 void subf_teardown(sbuf_ptr_t sp) {
   free(sp->buf);
-  INFO("Buffer queue has been destroyed, OK\n");
 }
 
 void sbuf_insert(sbuf_ptr_t sp, int item) {

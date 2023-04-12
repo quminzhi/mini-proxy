@@ -75,13 +75,13 @@ void *worker(void *vargp) {
 }
 
 void sigpipe_handler(int sig) {
-  WARNING("SIGPIPE received: pipe was broken\n");
+  printf("SIGPIPE received: pipe was broken\n");
   return;
 }
 
 void sigterm_handler(int sig) {
   cache_destroy();
-  INFO("Cache destroyed, exit by SIGTERM\n");
+  printf("Cache destroyed, exit by SIGTERM\n");
   return;
 }
 
@@ -100,7 +100,7 @@ int main(int argc, char *argv[]) {
   worker_setup();
 
   int listenfd = open_listenfd(argv[1]);
-  INFO("Listenfd has been initialized successfully\n");
+  printf("Listenfd has been initialized successfully\n");
   listen_on(listenfd);
 
   // destroy cache to prevent memory leakage
