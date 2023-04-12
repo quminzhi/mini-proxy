@@ -25,7 +25,7 @@ void read_request_header(nio_t *nio_ptr);
 int forward_request_response(int connfd, char *host, char *port, char *path);
 void forward_request(int forwardfd, char *host, char *port, char *path);
 size_t forward_response(int forwardfd, int connfd, char *payload);
-size_t forward_response_cached(int connfd, char *payload_cache);
+size_t forward_response_cached(int connfd, char *payload_cache, size_t bytesize);
 
 static inline void response_failure(int connfd, const char *cause,
                                     const char *errnum, const char *shortmsg,

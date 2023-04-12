@@ -8,12 +8,12 @@
 #define MAX_OBJECT_SIZE 102400 /* 100 KiB */
 
 /* reader-writer model: reader favored style
- * 
+ *
  * writers must have exclusive access to the object, but readers may share the
  * object with an unlimited number of other readers
  */
-extern volatile int readcnt; /* multi-thread: prevent readcnt from being cached in any
-                         register */
+extern volatile int readcnt; /* multi-thread: prevent readcnt from being cached
+                         in any register */
 extern sem_t mutex;          /* reader lock */
 extern sem_t w;              /* writer lock */
 
@@ -33,6 +33,7 @@ typedef struct cnode {
   char *path;
   // value: (payload: bytestream)
   char *payload;
+  size_t bytesize;
 
   struct cnode *prev;
   struct cnode *next;
@@ -44,17 +45,20 @@ extern int cache_count; /* count of nodes except front and end dummy nodes */
 extern volatile size_t cache_load; /* total cache load size */
 
 void cache_init();
-void add_cache(char *host, char *port, char *path, char *payload);
+void add_cache(char *host, char *port, char *path, char *payload,
+               size_t bytesize);
+void print_cache();
 void cache_destroy();
 
-cnode_t *new_node(char *host, char *port, char *path, char *payload);
+cnode_t *new_node(char *host, char *port, char *path, char *payload,
+                  size_t bytesize);
 void free_node(cnode_t *node);
 
 void enqueue(cnode_t *node);
 cnode_t *dequeue();
 void update(cnode_t *node);
 
-char *is_cached(char *host, char *port, char *path);
+int is_cached(char *host, char *port, char *path, char *payload, size_t *bytesize);
 int is_empty();
 
 static inline void cache_check();

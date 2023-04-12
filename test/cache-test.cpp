@@ -27,7 +27,8 @@ TEST_F(CacheTest, TestEnqueue) {
   char *port = "80";
   char *path = "/developer/hello.cpp";
   char *payload = "232kj3jk232nmnmasbcbuewei";
-  cnode_t *node = new_node(host, port, path, payload);
+  size_t bytesize = 1;
+  cnode_t *node = new_node(host, port, path, payload, bytesize);
   enqueue(node);
 
   ASSERT_TRUE(front->next == node);
@@ -42,7 +43,8 @@ TEST_F(CacheTest, TestDequeue) {
   char *port = "443";
   char *path = "/developer/hello.cpp";
   char *payload = "232kj3jk232nmnmasbcbuewei";
-  cnode_t *node = new_node(host, port, path, payload);
+  size_t bytesize = 2;
+  cnode_t *node = new_node(host, port, path, payload, bytesize);
   enqueue(node);
   cnode_t *del = dequeue();
   ASSERT_TRUE(strcmp(del->host, host) == 0);
@@ -59,19 +61,22 @@ TEST_F(CacheTest, TestLRUPolicy) {
   char *port1 = "80";
   char *path1 = "/developer/hello.cpp";
   char *payload1 = "232kj3jewei";
-  cnode_t *node1 = new_node(host1, port1, path1, payload1);
+  size_t bytesize1 = 12;
+  cnode_t *node1 = new_node(host1, port1, path1, payload1, bytesize1);
   enqueue(node1);
   char *host2 = "https://www.windows.com";
   char *port2 = "443";
   char *path2 = "/developer/hello.cpp";
   char *payload2 = "232k";
-  cnode_t *node2 = new_node(host2, port2, path2, payload2);
+  size_t bytesize2 = 12;
+  cnode_t *node2 = new_node(host2, port2, path2, payload2, bytesize2);
   enqueue(node2);
   char *host3 = "https://www.google.com";
   char *port3 = "443";
   char *path3 = "/developer/home.html";
   char *payload3 = "232kj3sssk232nmnmasbcbuewei";
-  cnode_t *node3 = new_node(host3, port3, path3, payload3);
+  size_t bytesize3 = 12;
+  cnode_t *node3 = new_node(host3, port3, path3, payload3, bytesize3);
   enqueue(node3);
 
   cnode_t *last1 = end->prev;
@@ -101,19 +106,24 @@ TEST_F(CacheTest, TestIsCached) {
   char *port1 = "80";
   char *path1 = "/developer/hello.cpp";
   char *payload1 = "232kj3jewei";
-  add_cache(host1, port1, path1, payload1);
+  size_t bytesize1 = 1;
+  add_cache(host1, port1, path1, payload1, bytesize1);
   char *host2 = "https://www.windows.com";
   char *port2 = "443";
   char *path2 = "/developer/hello.cpp";
   char *payload2 = "232k";
-  add_cache(host2, port2, path2, payload2);
+  size_t bytesize2 = 1;
+  add_cache(host2, port2, path2, payload2, bytesize2);
   char *host3 = "https://www.google.com";
   char *port3 = "443";
   char *path3 = "/developer/home.html";
   char *payload3 = "232kj3sssk232nmnmasbcbuewei";
-  add_cache(host3, port3, path3, payload3);
+  size_t bytesize3 = 1;
+  add_cache(host3, port3, path3, payload3, bytesize3);
 
-  char *payload_cache = is_cached(host1, port1, path1);
-  ASSERT_TRUE(payload_cache != NULL);
+  char payload_cache[MAX_OBJECT_SIZE];
+  size_t *bytesize;
+  int rc = is_cached(host1, port1, path1, payload_cache, bytesize);
+  ASSERT_TRUE(rc == 1);
   ASSERT_EQ(strcmp(payload_cache, payload1), 0);
 }

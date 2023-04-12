@@ -37,9 +37,12 @@ void worker_main(int connfd) {
   }
 
   // todo: cached
-  char *payload_cache = NULL;
-  if ((payload_cache = is_cached(host, port, path)) != NULL) {
-    size_t sum = forward_response_cached(connfd, payload_cache);
+  int rc = 0;
+  char payload_cache[MAX_OBJECT_SIZE]; /* pointer to payload */
+  size_t bytesize;       /* pointer to payload size */
+  if ((rc = is_cached(host, port, path, payload_cache, &bytesize)) != 0) {
+    LOG("CACHE HIT!\n");
+    size_t sum = forward_response_cached(connfd, payload_cache, bytesize);
     LOG("Responded %lu bytes to connfd(%d) CACHED\n", sum, connfd);
     return;
   }
@@ -51,11 +54,13 @@ void worker_main(int connfd) {
   forward_request(forwardfd, host, port, path);
 
   // forward response
+  WARNING("CACHE MISS!\n");
   char payload[MAX_OBJECT_SIZE]; /* cache for respond info */
   memset(payload, 0, sizeof payload);
   size_t sum = forward_response(forwardfd, connfd, payload);
   if (sum < MAX_OBJECT_SIZE) {
-    add_cache(host, port, path, payload);
+    add_cache(host, port, path, payload, sum);
+    print_cache();
   }
   LOG("Responded %lu bytes to connfd(%d) FRESH request\n", sum, connfd);
 }
@@ -146,7 +151,7 @@ void forward_request(int forwardfd, char *host, char *port, char *path) {
  *
  * pass payload back to calling function for caching if possible
  *
- * return size of response in byte
+ * return size of response in BYTE
  */
 size_t forward_response(int forwardfd, int connfd, char *payload) {
   nio_t forward_nio;
@@ -171,9 +176,10 @@ size_t forward_response(int forwardfd, int connfd, char *payload) {
 /*!
  * @brief forward_response_cached respond cached byte stream back to the client
  */
-size_t forward_response_cached(int connfd, char *payload_cache) {
-  nio_writen(connfd, payload_cache, strlen(payload_cache));
-  return strlen(payload_cache);
+size_t forward_response_cached(int connfd, char *payload_cache,
+                               size_t bytesize) {
+  nio_writen(connfd, payload_cache, bytesize);
+  return bytesize;
 }
 
 /*!
@@ -215,7 +221,8 @@ int parse_uri(const char *uri, char *host, char *port, char *path) {
   strncpy(scheme, uri, len);
   scheme[len] = '\0';
   if (strcasecmp(scheme, "http") != 0) {
-    WARNING("Requested uri includes unsupported scheme, only support HTTP request "
+    WARNING(
+        "Requested uri includes unsupported scheme, only support HTTP request "
         "so far");
     return 0;
   }

@@ -31,8 +31,8 @@ void cache_init() {
   cache_load = 0;
   cache_count = 0;
 
-  front = new_node("", "", "", "");
-  end = new_node("", "", "", "");
+  front = new_node("", "", "", "", 0);
+  end = new_node("", "", "", "", 0);
   front->next = end, front->prev = NULL;
   end->prev = front, end->next = NULL;
 
@@ -79,7 +79,7 @@ static inline void post_write() {
  * @brief new_node creates a new node and allocates memory in heap for each
  * field
  */
-cnode_t *new_node(char *host, char *port, char *path, char *payload) {
+cnode_t *new_node(char *host, char *port, char *path, char *payload, size_t bytesize) {
   cnode_t *res = (cnode_t *)malloc(sizeof(cnode_t));
 
   res->host = (char *)malloc(strlen(host) + 1);
@@ -88,8 +88,12 @@ cnode_t *new_node(char *host, char *port, char *path, char *payload) {
   strcpy(res->port, port);
   res->path = (char *)malloc(strlen(path) + 1);
   strcpy(res->path, path);
+  res->bytesize = bytesize;
+
+  // INFO: byte size != length of string (diff: sizeof and strlen)
+  // strlen calculates the length of null-terminated string
   res->payload = (char *)malloc(strlen(payload) + 1);
-  strcpy(res->payload, payload);
+  memcpy(res->payload, payload, res->bytesize);
 
   return res;
 }
@@ -108,11 +112,9 @@ void free_node(cnode_t *node) {
 /*!
  * @brief add_cache add a cache record into cache queue
  */
-void add_cache(char *host, char *port, char *path, char *payload) {
-  cnode_t *node = new_node(host, port, path, payload);
+void add_cache(char *host, char *port, char *path, char *payload, size_t bytesize) {
+  cnode_t *node = new_node(host, port, path, payload, bytesize);
   enqueue(node);
-
-  LOG("Added a new cache line (%s, %s, %s) => %s\n", host, port, path, payload);
 
   // remove LRU nodes if cache load overflows
   if (cache_load > MAX_CACHE_SIZE) {
@@ -122,6 +124,19 @@ void add_cache(char *host, char *port, char *path, char *payload) {
       del = dequeue();
       free_node(del);
     }
+  }
+}
+
+/*!
+ * @brief print_cache print cache queue
+ *
+ * print cache queue for debug
+ */
+void print_cache() {
+  printf("=============== CACHE Queue ===============\n");
+  for (cnode_t *p = front->next; p != end; p = p->next) {
+    printf("(%s, %s, %s) => payload size (%lu)\n", p->host, p->port, p->path,
+           p->bytesize);
   }
 }
 
@@ -219,26 +234,26 @@ int is_empty() { return front->next == end && front == end->prev; }
  *
  * note: update if found
  *
- * return address and payload, NULL if not cached
+ * return 0 if not cached, 1 if cached
  */
-char *is_cached(char *host, char *port, char *path) {
+int is_cached(char *host, char *port, char *path, char *payload, size_t *bytesize) {
   pre_read();
   if (is_empty()) {
     post_read();
-    return NULL;
+    return 0;
   }
   cnode_t *p;
   for (p = end->prev; p != front; p = p->prev) {
     if (is_match(p, host, port, path)) {
       post_read(); // release before update
-      update(p);   // update if cached
-      LOG("(%s, %s, %s) has been cached => %s\n", host, port, path, p->payload);
-      return p->payload;
+      update(p);   // update priority if cache hit
+      memcpy(payload, p->payload, p->bytesize);
+      *bytesize = p->bytesize;
+      return 1; 
     }
   }
-  LOG("(%s, %s, %s) is not cached\n", host, port, path);
   post_read();
-  return NULL;
+  return 0;
 }
 
 /*!
