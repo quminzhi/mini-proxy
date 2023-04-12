@@ -1,121 +1,93 @@
-# Test Driven Framework
+# Mini Proxy
 
-This is a test-driven framework built on Google Test.
+A Web proxy is a program that acts as a middleman between a Web browser and an end server. Instead of contacting the end server directly to get a Web page, the browser contacts the proxy, which forwards the request on to the end server. When the end server replies to the proxy, the proxy sends the reply on to the browser.
 
-## Structure
+Proxies are useful for many purposes. Sometimes proxies are used in ﬁrewalls, so that browsers behind a ﬁrewall can only contact a server beyond the ﬁrewall via the proxy. Proxies can also act as anonymizers: by stripping requests of all identifying information, a proxy can make the browser anonymous to Web servers. Proxies can even be used to cache web objects by storing local copies of objects from servers then responding to future requests by reading them out of its cache rather than by communicating again with remote servers.
 
-CMake is a tree-like auto compilation system. Test driven framework is
-constructed and organized with CMake and Google Test. It supports software
-development in C and C++.
+Mini Proxy is a simple HTTP proxy that caches web objects with following
+features:
 
-- Google Test
+- service many clients in parallel with different ways (I/O multiplexing,
+  process-based parallelism, and thread-pool based parallelism).
+- speed up performance by implementing a LRU memory cache.
 
-[Google Test](https://github.com/google/googletest) is a test framework
-developed by Google Inc. in C++. Google Test is compiled as a dynamic linked
-(shared) library and ingrated in our test driven framework for software
-development.
+## Architecture 
 
-```cmake
-set(EXTERNALTEST external-test)
-set(SOURCES external-test.cpp)
-add_executable(${EXTERNALTEST} ${SOURCES})
-target_link_libraries(${EXTERNALTEST} PUBLIC 
-  gtest_main   # <===
-  libexternal 
-)
-add_test(NAME ${EXTERNALTEST} COMMAND "${EXTERNALTEST}")``cmake
+In this section, we introduce architecture of Mini Proxy application. The
+project is organized as follows:
+
+```bash
+.
+├── app
+│   ├── client.c          # client application
+│   ├── CMakeLists.txt
+│   ├── proxy.c           # proxy application
+│   ├── proxy.h           # proxy header file
+│   └── reader-writer.c   # reader-writer demo
+├── build
+├── CMakeLists.txt
+├── compile_commands.json # compile database for clang
+├── lib
+│   ├── CMakeLists.txt
+│   ├── include           # include module headers
+│   └── src               # include module sources
+├── README.md
+├── test                  # module tests with googletest
+└── googletest            # googletest module
+
+# modules
+.
+├── CMakeLists.txt
+├── include
+│   ├── cache.h           # thread-safe cache
+│   ├── comm.h            # common definitions
+│   ├── csapp.h           # csapp module
+│   ├── inet-helper.h     # network module
+│   ├── nio.h             # network I/O module
+│   ├── proxy-module.h    # thread pipeline
+│   └── sbuf.h            # thread-safe message queue
+└── src
 ```
 
-- User-defined Library
+### Thread Pool Model
 
-User-defined library is defined in `lib` folder, which includes `src` and
-`include` folders. `src` folder contains all sorts of source files (e.g.
-`file.c`, `file.cpp`, and so forth).
+To service multiple clients in parallel, master-worker flows based on thread-pool model are implemented. There is one master that listens on a port specified by an admin, creates connection when it accepts a connection request, and push connection into the message queue. Sixteen workers appear in the form of thread and retrieve connections from a message queue sitting in the middle between master side and worker side.
 
-In addition to editing source and header files, we need to tell compilation
-system how to incorporate our libraries into the whole project by
-`CMakefile.txt`.
+Message queue is a canonical producer-consumer model. To prevent multiple workers fetch connection file descriptor (`connfd`) in the message queue, spin lock is employed (refer to `sbuf.c`).
 
-```cmake
-# add your own library here
-add_library(
-  foo SHARED
-  include/foo.h
-  src/foo.c
-)
-target_include_directories(foo PUBLIC "${LIB_INCLUDE_DIR}")
+```bash
+client ---+                                                +----- worker 0
+client ---|     +-----------+    +---------------------+   |      worker 1
+          +---> | listen fd | => | connfd, ..., connfd | --+----- worker 2
+...       |     +-----------+    +---------------------+   |      ...
+          |        master             message queue        +----- worker 15
+client ---+       
 ```
 
-- Third-party library
+Worker threads are taking care of each connection they retrieved from message
+queue (refer to `proxy-module.c:worker_main`).
 
-Third party library and user-defined library share `lib` folder. The only
-difference is that we have to aggregate them into external dynamic linked
-library to provide a unified interface for client programs. The demo code below 
-shows how to compile `csapp` and expose it with a unified interface `libexternal`.
+### Worker Pipeline
 
-```cmake
-# external link_libraries
-add_library(
-  csapp SHARED
-  include/csapp.h
-  src/csapp.c
-)
-target_include_directories(csapp PUBLIC "${LIB_INCLUDE_DIR}")
+Worker pipeline is defined and implemented in `proxy-module` module. Following
+work is going to be done sequentially.
 
-# aggregate all auxiliary libraries into libcomm 
-# todo: add library to import in libcomm
-add_library(
-  libexternal INTERFACE
-)
+- read and parse an HTTP request from client
+- read request headers if HTTP request is valid
+- respond back to the client with cached response if the request is cached.
+- if not, forward an HTTP request/response transaction, cache response and write
+  it back to the client.
 
-target_link_libraries(
-  libexternal INTERFACE
-  csapp
-)
-target_include_directories(libexternal INTERFACE "${LIB_INCLUDE_DIR}")
-```
+### LRU Memory Cache
 
-- Test
-
-The functionality of libraries (`.so` in linux or `.dll` in windows) is tested
-with test files in `test` folder. Test is processed with Google Test framework.
-
-```c
-#include <gtest/gtest.h>
-
-extern "C" {
-#include <stdlib.h>
-}
-
-class FooTest: public ::testing::Test {
-protected:
-
-  void SetUp() override {
-  }
-
-  void TearDown() override {}
-};
-
-TEST_F(FooTest, TestWordReference) {
-  // do your test
-}
-```
-
-- App
-
-The final application is produced in `app` folder as an executable file, which
-can be published and used for whatever uses.
-
-## Features
-
-- A test-driven software development framework
-- A rich set of test
-- A c++ framework and c compatible.
-- Test and development separation.
+LRU memory cache is implemented with a priority queue based on doubly linked list. Since many threads may read from or write into it in parallel, reader-writer synchronization is a must. We implement a reader-favored approach, i.e. multiple readers are able to read simultaneously, yet only one writer can write when there is no reader reading from the cache (refer to `cache.c`).
 
 ## Contributing Changes
 
-Contributions are welcomed and please send your changes as the form as pull
-request (PR).
+Thanks Prof. Randal E. Bryant and Prof. David R. O'Hallaron open study materials
+to the public.
 
 Contact: quminzhi@gmail.com
+
+This project follows The MIT License (MIT) 
+Copyright (c) 2023 Minzhi
