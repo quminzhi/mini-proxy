@@ -84,7 +84,7 @@ LRU memory cache is implemented with a priority queue based on doubly linked lis
 
 ## Contributing Changes
 
-Thanks Prof. Randal E. Bryant and Prof. David R. O'Hallaron open study materials
+Thanks Prof. Randal E. Bryant and Prof. David R. O'Hallaron for opening study materials
 to the public.
 
 Contact: quminzhi@gmail.com
